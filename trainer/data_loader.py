@@ -39,13 +39,6 @@ def augment_for_test(rain_image, clean_image):
     return rain_image, clean_image
 
 
-# def normalize(rain_image, clean_image):
-#     rain_image_fp = tf.concat([rain_image[:,:,:1] * 2 - 1, rain_image[:,:,1:] * 2])
-#     clean_image_fp = tf.concat([rain_image[:,:,:1] * 2 - 1, rain_image[:,:,1:] * 2])
-
-#     return rain_image_fp, clean_image_fp
-
-
 def random_crop_batch_images(rain_image, clean_image, cropped_size):
     concat_images = tf.concat([rain_image, clean_image], axis=-1)
 
@@ -89,7 +82,7 @@ class DataLoader(object):
                 'flags of the data feeder should be \'train\', \'test\', \'val\''
             )
 
-    def inputs(self, batch_size):
+    def inputs(self, batch_size, num_epochs=1):
         """
         dataset feed pipline input
         :param batch_size:
@@ -123,9 +116,6 @@ class DataLoader(object):
                 dataset = dataset.map(
                     map_func=augment_for_test,
                     num_parallel_calls=CFG.TRAIN.CPU_MULTI_PROCESS_NUMS)
-            # dataset = dataset.map(
-            #     map_func=normalize,
-            #     num_parallel_calls=CFG.TRAIN.CPU_MULTI_PROCESS_NUMS)
 
             # The shuffle transformation uses a finite-sized buffer to shuffle elements
             # in memory. The parameter is the number of elements in the buffer. For
@@ -134,7 +124,7 @@ class DataLoader(object):
             if self._dataset_flags != 'test':
                 dataset = dataset.shuffle(buffer_size=1000)
                 # repeat num epochs
-                dataset = dataset.repeat(18)
+                dataset = dataset.repeat(num_epochs)
 
             dataset = dataset.batch(batch_size, drop_remainder=True)
             dataset = dataset.prefetch(buffer_size=AUTOTUNE)
