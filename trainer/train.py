@@ -134,7 +134,7 @@ def main(_):
 
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
-            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op], gl)
+            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
             cost_time = time.time() - t_start
 
             summary_writer.add_summary(t_s, global_step=epoch)
