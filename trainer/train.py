@@ -82,8 +82,8 @@ def main(_):
 
 
         global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(FLAGS.lr, global_step, FLAGS.decay_every, FLAGS.lr_decay, staircase=True, global_step=global_step)
-        train_op = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta1).minimize(train_loss, var_list=a2net_vars)
+        learning_rate = tf.train.exponential_decay(FLAGS.lr, global_step, FLAGS.decay_every, FLAGS.lr_decay, staircase=True)
+        train_op = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta1).minimize(train_loss, var_list=a2net_vars, global_step=global_step)
 
         train_loss_scalar = tf.summary.scalar('train_loss', train_loss)
         train_l_ssim_Y_scalar = tf.summary.scalar('train_l_ssim_Y', train_l_ssim_Y)
@@ -134,7 +134,7 @@ def main(_):
 
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
-            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
+            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op], gl)
             cost_time = time.time() - t_start
 
             summary_writer.add_summary(t_s, global_step=epoch)
