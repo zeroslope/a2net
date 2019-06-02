@@ -58,14 +58,14 @@ def main(_):
             train_O_Y, train_O_UV, train_out = a2net(train_x, is_train=True, reuse=False)
             val_O_Y, val_O_UV, val_out = a2net(val_x, is_train=False, reuse=True)
 
+            train_out_tensor = train_out.outputs
+            val_out_tensor = val_out.outputs
+
             ###======================== DEFINE LOSS =========================###
 
-            train_loss = a2net_loss(train_O_Y, train_O_UV, train_y, name='a2net_loss', reuse=False)
-            val_loss = a2net_loss(val_O_Y, val_O_UV, val_y, name='a2net_loss', reuse=True)
+            train_loss, train_l_ssim_Y, train_l_ssim_UV = a2net_loss(train_O_Y, train_O_UV, train_y, name='a2net_loss', reuse=False)
+            val_loss, val_l_ssim_Y, val_l_ssim_UV = a2net_loss(val_O_Y, val_O_UV, val_y, name='a2net_loss', reuse=True)
         
-
-        tf.summary.scalar('train_loss', train_loss)
-        tf.summary.scalar('val_loss', val_loss)
 
         ####======================== DEFINE TRAIN OPTS ==============================###
         a2net_vars = tl.layers.get_variables_with_name('a2net', train_only=True, verbose=True)
@@ -74,6 +74,22 @@ def main(_):
             global_step = tf.Variable(0, trainable=False)
             learning_rate = tf.train.exponential_decay(FLAGS.lr , global_step, 100000, FLAGS.lr_decay, staircase=True)
             train_op = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta1).minimize(train_loss, var_list=a2net_vars)
+
+        train_loss_scalar = tf.summary.scalar('train_loss', train_loss)
+        train_l_ssim_Y_scalar = tf.summary.scalar('train_l_ssim_Y', train_l_ssim_Y)
+        train_l_ssim_UV_scalar = tf.summary.scalar('train_l_ssim_UV', train_l_ssim_UV)
+        val_loss_scalar = tf.summary.scalar('val_loss', val_loss)
+        val_l_ssim_Y_scalar = tf.summary.scalar('val_l_ssim_Y', val_l_ssim_Y)
+        val_l_ssim_UV_scalar = tf.summary.scalar('val_l_ssim_UV', val_l_ssim_UV)
+
+        lr_scalar = tf.summary.scalar(name='learning_rate', tensor=learning_rate)
+
+        train_summary = tf.summary.merge(
+            [train_loss_scalar, train_l_ssim_Y_scalar, train_l_ssim_UV_scalar, lr_scalar]
+        )
+        val_summary = tf.summary.merge(
+            [val_loss_scalar, val_l_ssim_Y_scalar, val_l_ssim_UV_scalar]
+        )
 
         ###======================== LOAD MODEL ==============================###
         tl.layers.initialize_global_variables(sess)
@@ -108,22 +124,27 @@ def main(_):
 
     for epoch in range(FLAGS.train_epochs):
         t_start = time.time()
-        t_l, _ = sess.run([train_loss, train_op])
+        t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
         cost_time = time.time() - t_start
 
-        # summary_writer.add_summary(t_l, global_step=epoch)
-        log.info('Epoch_Train: {:d} train_loss: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, cost_time))
+        summary_writer.add_summary(t_s, global_step=epoch)
+        summary_writer.add_summary(v_s, global_step=epoch)
+
+        log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
 
         # Evaluate model
-        if epoch % 500 == 0:
-            v_l = sess.run([val_loss])
-            # print(v_l)
-            # summary_writer.add_summary(v_l, global_step=epoch)
-            log.info('Epoch_Val: {:d} val_loss: {:.5f} Cost_time: {:.5f}s'.format(epoch, v_l[0], cost_time))
+        if (epoch+1) % 50 == 0:
+            v_out, v_l, v_l_Y, v_l_UV = sess.run([val_out_tensor, val_loss, val_l_ssim_Y, val_l_ssim_UV])
+            gen_img = tf.image.yuv_to_rgb(v_out)
+            tl.visualize.save_images(gen_img, [FLAGS.batch_size, FLAGS.batch_size], 'sample/val/{epoch}.png'.format(epoch))
+            log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
 
         # Save Model
-        if epoch % 1000 == 0:
+        if (epoch+1) % 200 == 0:
             saver.save(sess=sess, save_path=model_save_path, global_step=epoch)
+
+    summary_writer.close()
+    sess.close()
 
 
 if __name__ == "__main__":
