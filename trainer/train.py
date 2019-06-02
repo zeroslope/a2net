@@ -65,6 +65,9 @@ def main(_):
             val_out_rgb_float = tf.image.yuv_to_rgb(val_out_tensor)
             val_out_rgb = tf.image.convert_image_dtype(val_out_rgb_float, tf.uint8)
 
+            val_in_x_float = tf.image.yuv_to_rgb(val_x)
+            val_in_x_rgb = tf.image.convert_image_dtype(val_in_x_float, tf.uint8)
+
             val_in_y_float = tf.image.yuv_to_rgb(val_y)
             val_in_y_rgb = tf.image.convert_image_dtype(val_in_y_float, tf.uint8)
 
@@ -140,12 +143,12 @@ def main(_):
         log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
 
         # Evaluate model
-        if (epoch+1) % 100 == 0:
-            v_in_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
+        if (epoch+1) % 50 == 0:
+            v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
 
-            gen_img = np.array([v_in_rgb, v_out_rgb])
+            gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
-            tl.visualize.save_images(gen_img, [2, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
+            tl.visualize.save_images(gen_img, [3, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
             log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
 
         # Save Model
