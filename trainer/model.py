@@ -94,13 +94,13 @@ def a2net_loss(o_Y, o_UV, gt, name, alpha=0.6, reuse=False):
 
         l_mse_Y = tl.cost.mean_squared_error(o_Y, t_Y, is_mean=True, name='loss/mse_Y')
         l_ssim_Y = tf.reduce_mean(tf.image.ssim(o_Y, t_Y, max_val=2.0), name='loss/ssim_Y')
-        l_Y = l_mse_Y + l_ssim_Y
+        l_Y = l_mse_Y - l_ssim_Y
 
         l_mse_UV = tl.cost.mean_squared_error(o_UV, t_UV, is_mean=True, name='loss/mse_UV')
         l_ssim_UV = tf.reduce_mean(tf.image.ssim(o_UV, t_UV, max_val=2.0), name='loss/ssim_UV')
-        l_UV = l_mse_UV + l_ssim_UV
+        l_UV = l_mse_UV - l_ssim_UV
 
-        # TODO: + -> -
-        loss = l_Y - alpha * l_UV
+        # TODO: I am too stupid.
+        loss = l_Y + alpha * l_UV
 
         return loss, l_ssim_Y, l_ssim_UV
