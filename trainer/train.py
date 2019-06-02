@@ -47,43 +47,43 @@ def main(_):
 
     with tf.device('/cpu:0'):
         sess = tf.Session(config=config)
+        ###======================== DEFIINE MODEL =======================###
+        train_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='train')
+        val_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='val')
 
-        with tf.device('/gpu:0'):
-            ###======================== DEFIINE MODEL =======================###
-            train_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='train')
-            val_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='val')
+        train_x, train_y = train_dataset.inputs(FLAGS.batch_size)
+        val_x, val_y = val_dataset.inputs(FLAGS.batch_size)
 
-            train_x, train_y = train_dataset.inputs(FLAGS.batch_size)
-            val_x, val_y = val_dataset.inputs(FLAGS.batch_size)
+    with tf.device('/gpu:0'):
+        
+        train_O_Y, train_O_UV, train_out = a2net(train_x, is_train=True, reuse=False)
+        val_O_Y, val_O_UV, val_out = a2net(val_x, is_train=False, reuse=True)
 
-            train_O_Y, train_O_UV, train_out = a2net(train_x, is_train=True, reuse=False)
-            val_O_Y, val_O_UV, val_out = a2net(val_x, is_train=False, reuse=True)
+        train_out_tensor = train_out.outputs
+        
+        val_out_tensor = val_out.outputs
+        val_out_rgb_float = tf.image.yuv_to_rgb(val_out_tensor)
+        val_out_rgb = tf.image.convert_image_dtype(val_out_rgb_float, tf.uint8)
 
-            train_out_tensor = train_out.outputs
-            
-            val_out_tensor = val_out.outputs
-            val_out_rgb_float = tf.image.yuv_to_rgb(val_out_tensor)
-            val_out_rgb = tf.image.convert_image_dtype(val_out_rgb_float, tf.uint8)
+        val_in_x_float = tf.image.yuv_to_rgb(val_x)
+        val_in_x_rgb = tf.image.convert_image_dtype(val_in_x_float, tf.uint8)
 
-            val_in_x_float = tf.image.yuv_to_rgb(val_x)
-            val_in_x_rgb = tf.image.convert_image_dtype(val_in_x_float, tf.uint8)
+        val_in_y_float = tf.image.yuv_to_rgb(val_y)
+        val_in_y_rgb = tf.image.convert_image_dtype(val_in_y_float, tf.uint8)
 
-            val_in_y_float = tf.image.yuv_to_rgb(val_y)
-            val_in_y_rgb = tf.image.convert_image_dtype(val_in_y_float, tf.uint8)
+        ###======================== DEFINE LOSS =========================###
 
-            ###======================== DEFINE LOSS =========================###
-
-            train_loss, train_l_ssim_Y, train_l_ssim_UV = a2net_loss(train_O_Y, train_O_UV, train_y, name='a2net_loss', reuse=False)
-            val_loss, val_l_ssim_Y, val_l_ssim_UV = a2net_loss(val_O_Y, val_O_UV, val_y, name='a2net_loss', reuse=True)
+        train_loss, train_l_ssim_Y, train_l_ssim_UV = a2net_loss(train_O_Y, train_O_UV, train_y, name='a2net_loss', reuse=False)
+        val_loss, val_l_ssim_Y, val_l_ssim_UV = a2net_loss(val_O_Y, val_O_UV, val_y, name='a2net_loss', reuse=True)
         
 
         ####======================== DEFINE TRAIN OPTS ==============================###
         a2net_vars = tl.layers.get_variables_with_name('a2net', train_only=True, verbose=True)
 
-        with tf.device('/gpu:0'):
-            global_step = tf.Variable(0, trainable=False)
-            learning_rate = tf.train.exponential_decay(FLAGS.lr , global_step, 100000, FLAGS.lr_decay, staircase=True)
-            train_op = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta1).minimize(train_loss, var_list=a2net_vars)
+
+        global_step = tf.Variable(0, trainable=False)
+        learning_rate = tf.train.exponential_decay(FLAGS.lr , global_step, 100000, FLAGS.lr_decay, staircase=True)
+        train_op = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta1).minimize(train_loss, var_list=a2net_vars)
 
         train_loss_scalar = tf.summary.scalar('train_loss', train_loss)
         train_l_ssim_Y_scalar = tf.summary.scalar('train_l_ssim_Y', train_l_ssim_Y)
@@ -132,28 +132,28 @@ def main(_):
             log.info('Restore model from last model checkpoint {:s}'.format(FLAGS.weights_path))
             saver.restore(sess=sess, save_path=FLAGS.weights_path)
 
-    for epoch in range(FLAGS.train_epochs):
-        t_start = time.time()
-        t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
-        cost_time = time.time() - t_start
+        for epoch in range(FLAGS.train_epochs):
+            t_start = time.time()
+            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
+            cost_time = time.time() - t_start
 
-        summary_writer.add_summary(t_s, global_step=epoch)
-        summary_writer.add_summary(v_s, global_step=epoch)
+            summary_writer.add_summary(t_s, global_step=epoch)
+            summary_writer.add_summary(v_s, global_step=epoch)
 
-        log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
+            log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
 
-        # Evaluate model
-        if (epoch+1) % 50 == 0:
-            v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
+            # Evaluate model
+            if (epoch+1) % 50 == 0:
+                v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
 
-            gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
+                gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
-            tl.visualize.save_images(gen_img, [3, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
-            log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
+                tl.visualize.save_images(gen_img, [3, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
+                log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
 
-        # Save Model
-        if (epoch+1) % 200 == 0:
-            saver.save(sess=sess, save_path=model_save_path, global_step=epoch)
+            # Save Model
+            if (epoch+1) % 250 == 0:
+                saver.save(sess=sess, save_path=model_save_path, global_step=epoch)
 
     summary_writer.close()
     sess.close()
