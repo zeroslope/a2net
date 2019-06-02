@@ -123,8 +123,8 @@ class DataLoader(object):
             # number of elements in the dataset.
             if self._dataset_flags != 'test':
                 dataset = dataset.shuffle(buffer_size=1000)
-                # repeat num epochs
-                dataset = dataset.repeat(num_epochs)
+                # repeat 不加参数可以无限循环，否则需要catch OutOfRangeError
+                dataset = dataset.repeat()
 
             dataset = dataset.batch(batch_size, drop_remainder=True)
             dataset = dataset.prefetch(buffer_size=AUTOTUNE)
