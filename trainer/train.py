@@ -20,7 +20,7 @@ flags.DEFINE_float('alpha', 0.6, 'loss = l_Y + alpha * l_UV [0.6]')
 flags.DEFINE_float('beta1', 0.5, 'beta1 [0.5]')
 flags.DEFINE_float('lr', 0.0002, 'learning_rate [0.0002]')
 flags.DEFINE_float('lr_decay', 0.90, 'lr_decay [0.5]')
-flags.DEFINE_integer('decay_every', 200, 'decay_every [200]')
+flags.DEFINE_integer('decay_every', 50, 'decay_every [200]')
 flags.DEFINE_integer('train_epochs', 50000, 'train_epochs')
 flags.DEFINE_integer('batch_size', 4, 'batch_size [4]')
 flags.DEFINE_integer('test_batch_size', 1, 'batch_size [1]')
@@ -82,7 +82,8 @@ def main(_):
 
 
         global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(FLAGS.lr, global_step, FLAGS.decay_every, FLAGS.lr_decay, staircase=True)
+        # learning_rate = tf.train.exponential_decay(FLAGS.lr, global_step, FLAGS.decay_every, FLAGS.lr_decay, staircase=True)
+        learning_rate = tf.train.noisy_linear_cosine_decay(learning_rate=FLAGS.lr, global_step=global_step, decay_steps=FLAGS.decay_every, initial_variance=0.01, variance_decay=0.1, num_periods=0.2, alpha=0.5, beta=0.2)
         train_op = tf.train.AdamOptimizer(learning_rate, beta1=FLAGS.beta1).minimize(train_loss, var_list=a2net_vars, global_step=global_step)
 
         train_loss_scalar = tf.summary.scalar('train_loss', train_loss)
