@@ -101,6 +101,6 @@ def a2net_loss(o_Y, o_UV, gt, name, alpha=0.6, reuse=False):
         l_UV = l_mse_UV + l_ssim_UV
 
         # TODO: + -> -
-        loss = l_Y + alpha * l_UV
+        loss = l_Y - alpha * l_UV
 
-        return loss
+        return loss, l_ssim_Y, l_ssim_UV
