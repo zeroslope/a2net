@@ -19,8 +19,8 @@ flags.DEFINE_string('weights_path', None, 'The pretrained weights path. [None]')
 flags.DEFINE_float('alpha', 0.6, 'loss = l_Y + alpha * l_UV [0.6]')
 flags.DEFINE_float('beta1', 0.5, 'beta1 [0.5]')
 flags.DEFINE_float('lr', 0.0002, 'learning_rate [0.0002]')
-flags.DEFINE_float('lr_decay', 0.6, 'lr_decay [0.5]')
-flags.DEFINE_integer('decay_every', 500, 'decay_every [500]')
+flags.DEFINE_float('lr_decay', 0.90, 'lr_decay [0.5]')
+flags.DEFINE_integer('decay_every', 200, 'decay_every [200]')
 flags.DEFINE_integer('train_epochs', 50000, 'train_epochs')
 flags.DEFINE_integer('batch_size', 4, 'batch_size [4]')
 flags.DEFINE_integer('test_batch_size', 1, 'batch_size [1]')
@@ -136,9 +136,7 @@ def main(_):
 
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
-            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op], feed_dict={
-                global_step: epoch
-            })
+            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
             cost_time = time.time() - t_start
 
             summary_writer.add_summary(t_s, global_step=epoch)
