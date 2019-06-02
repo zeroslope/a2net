@@ -42,7 +42,7 @@ def main(_):
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True
-    # config.gpu_options.per_process_gpu_memory_fraction = 0.99
+    config.gpu_options.per_process_gpu_memory_fraction = 0.99
 
     with tf.device('/cpu:0'):
         sess = tf.Session(config=config)
@@ -136,7 +136,7 @@ def main(_):
         if (epoch+1) % 50 == 0:
             v_out, v_l, v_l_Y, v_l_UV = sess.run([val_out_tensor, val_loss, val_l_ssim_Y, val_l_ssim_UV])
             gen_img = tf.image.yuv_to_rgb(v_out)
-            tl.visualize.save_images(gen_img, [FLAGS.batch_size, FLAGS.batch_size], 'sample/val/{epoch}.png'.format(epoch))
+            tl.visualize.save_images(gen_img, [FLAGS.batch_size, FLAGS.batch_size], 'sample/val_{epoch}.png'.format(epoch))
             log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
 
         # Save Model
