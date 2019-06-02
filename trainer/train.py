@@ -93,9 +93,11 @@ def main(_):
         val_l_ssim_UV_scalar = tf.summary.scalar('val_l_ssim_UV', val_l_ssim_UV)
 
         lr_scalar = tf.summary.scalar(name='learning_rate', tensor=learning_rate)
+        global_step_scalar = tf.summary.scalar(name='global_step', tensor=global_step)
+
 
         train_summary = tf.summary.merge(
-            [train_loss_scalar, train_l_ssim_Y_scalar, train_l_ssim_UV_scalar, lr_scalar]
+            [train_loss_scalar, train_l_ssim_Y_scalar, train_l_ssim_UV_scalar, lr_scalar, global_step_scalar]
         )
         val_summary = tf.summary.merge(
             [val_loss_scalar, val_l_ssim_Y_scalar, val_l_ssim_UV_scalar]
@@ -134,7 +136,9 @@ def main(_):
 
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
-            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
+            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op], feed_dict={
+                global_step: epoch
+            })
             cost_time = time.time() - t_start
 
             summary_writer.add_summary(t_s, global_step=epoch)
