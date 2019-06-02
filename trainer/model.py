@@ -72,12 +72,12 @@ def a2net(x, is_train=True, reuse=False):
 
         outY_plus_Y = ElementwiseLambdaLayer(
             [outputY, inputY],
-            fn=lambda x, y: (2 * x + y + 1) / 4.,
+            fn=lambda x, y: (x + y) / 2.0,
             name='outY_plus_Y')
 
         outUV_plus_UV = ElementwiseLambdaLayer(
             [outputUV, inputUV],
-            fn=lambda x, y: (2 * x + y) / 4.,
+            fn=lambda x, y: (x + y) / 2.0,
             name='outUV_plus_UV')
 
         net_out = ConcatLayer([outY_plus_Y, outUV_plus_UV], concat_dim=-1, name='net_out')
@@ -97,7 +97,7 @@ def a2net_loss(o_Y, o_UV, gt, name, alpha=0.6, reuse=False):
         l_Y = l_mse_Y + l_ssim_Y
 
         l_mse_UV = tl.cost.mean_squared_error(o_UV, t_UV, is_mean=True, name='loss/mse_UV')
-        l_ssim_UV = tf.reduce_mean(tf.image.ssim(o_UV, t_UV, max_val=1.0), name='loss/ssim_UV')
+        l_ssim_UV = tf.reduce_mean(tf.image.ssim(o_UV, t_UV, max_val=2.0), name='loss/ssim_UV')
         l_UV = l_mse_UV + l_ssim_UV
 
         # TODO: + -> -
