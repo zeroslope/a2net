@@ -42,7 +42,7 @@ def main(_):
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True
-    config.gpu_options.allow_growth = True
+    # config.gpu_options.allow_growth = True
     # config.gpu_options.per_process_gpu_memory_fraction = 0.99
 
     with tf.device('/cpu:0'):
