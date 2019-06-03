@@ -6,11 +6,11 @@ import numpy as np
 import tensorflow as tf
 import tensorlayer as tl
 
-from data_loader import DataLoader
-from config import global_config
-CFG = global_config.cfg
+from trainer.data_loader import DataLoader
+from trainer.global_config import cfg
+CFG = cfg
 
-from model import a2net, a2net_loss
+from trainer.model import a2net, a2net_loss
 
 flags = tf.app.flags
 flags.DEFINE_string('dataset_dir', None, 'The dataset dir. [None]')

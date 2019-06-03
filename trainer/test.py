@@ -1,10 +1,10 @@
 import os
 from os import path
+import pathlib
 
 import numpy as np
 
 import tensorflow as tf
-# tf.enable_eager_execution()
 import tensorlayer as tl
 
 import skimage.io as io
@@ -12,21 +12,19 @@ from skimage.transform import resize
 from skimage.color import rgb2yuv, yuv2rgb, rgb2gray
 from skimage.measure import compare_ssim, compare_psnr
 
-from config import global_config
-CFG = global_config.cfg
+from trainer.global_config import cfg
+CFG = cfg
 
-from model import a2net
+from trainer.model import a2net
 
 flags = tf.app.flags
-flags.DEFINE_string('rain_img_path', None, 'The input rain image path. [None]')
-flags.DEFINE_string('gt_img_path', None, 'The ground truth image path. [None]')
+flags.DEFINE_string('dataset_dir', None, 'The dataset dir path. [None]')
 flags.DEFINE_string('weights_path', None, 'The pretrained weights path. [None]')
 flags.DEFINE_string('save_dir', None, 'save_dir. [None]')
-flags.DEFINE_integer('height', 240, 'image height [240]')
-flags.DEFINE_integer('width', 360, 'image height [360]')
+flags.DEFINE_integer('height', 480, 'image height [240]')
+flags.DEFINE_integer('width', 720, 'image height [360]')
 
-flags.mark_flag_as_required('rain_img_path')
-flags.mark_flag_as_required('gt_img_path')
+flags.mark_flag_as_required('dataset_dir')
 flags.mark_flag_as_required('weights_path')
 flags.mark_flag_as_required('save_dir')
 FLAGS = flags.FLAGS
@@ -45,49 +43,84 @@ def load_and_process_image(image_path):
     img_raw = io.imread(image_path)
     return preprocess_image(img_raw)
 
+def get_img_paths(dataset_dir):
+    assert path.exists(dataset_dir), '{:s} not exist'.format(dataset_dir)
+
+    def get_all_img_path(dir_path):
+        dir_path = pathlib.Path(dir_path)
+        img_paths = list(dir_path.glob('*.png'))
+        img_paths.sort(key=lambda x: x.name)
+        img_paths = [str(path) for path in img_paths]
+        return img_paths
+
+    rain_img_dir = path.join(dataset_dir, 'data')
+    gt_img_dir = path.join(dataset_dir, 'gt')
+
+    rain_paths = get_all_img_path(rain_img_dir)
+    gt_paths = get_all_img_path(gt_img_dir)
+
+    return list(zip(rain_paths, gt_paths))
+
 def main(_):
-    x = tf.placeholder(dtype=tf.float32, 
-        shape=[1, FLAGS.height, FLAGS.width, 3],
-        name='input_tensor'
-    )
+    tl.files.exists_or_mkdir(FLAGS.save_dir)
 
-    o_Y, o_UV, net_out = a2net(x, is_train=False, reuse=False)
-    out_tensor = net_out.outputs
+    img_paths = get_img_paths(FLAGS.dataset_dir)
 
-    rain_img = load_and_process_image(FLAGS.rain_img_path)
-    gt_img = load_and_process_image(FLAGS.gt_img_path)
+
+    with tf.device('/cpu:0'):
+        x = tf.placeholder(dtype=tf.float32, 
+            shape=[1, None, None, 3],
+            name='input_tensor'
+        )
+        o_Y, o_UV, net_out = a2net(x, is_train=False, reuse=False)
+        out_tensor = net_out.outputs
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True
-    config.gpu_options.per_process_gpu_memory_fraction = 0.99
 
     sess = tf.InteractiveSession(config=config)
 
     saver = tf.train.Saver()
     saver.restore(sess, FLAGS.weights_path)
 
-    out = sess.run([out_tensor], 
-        feed_dict={
-            x: np.expand_dims(rain_img, 0)
-        })
+    ssim_list = []
+    psnr_list = []
+
+    for r, g in img_paths:
+
+        rain_img = load_and_process_image(r)
+        gt_img = load_and_process_image(g)
+
+        out = sess.run(out_tensor, 
+            feed_dict={
+                x: np.expand_dims(rain_img, 0)
+            })
     
-    out_img = out[0][0]
+        out_img = out[0]
 
-    print(out_img.shape, gt_img.shape)
+        rain_img = yuv2rgb(rain_img)
+        out_img = yuv2rgb(out_img)
+        gt_img = yuv2rgb(gt_img)
 
-    out_img = yuv2rgb(out_img)
-    gt_img = yuv2rgb(gt_img)
+        ssim = compare_ssim(rgb2gray(gt_img), rgb2gray(out_img))
+        psnr = compare_psnr(rgb2gray(gt_img), rgb2gray(out_img))
 
-    ssim = compare_ssim(rgb2gray(out_img), rgb2gray(gt_img))
-    psnr = compare_ssim(rgb2gray(out_img), rgb2gray(gt_img))
+        ssim_list.append(ssim)
+        psnr_list.append(psnr)
 
-    print('SSIM: {:.5f}'.format(ssim))
-    print('PSNR: {:.5f}'.format(psnr))
+        print('SSIM: {:.5f}'.format(ssim))
+        print('PSNR: {:.5f}'.format(psnr))
 
-    io.imshow(out_img)
-    io.imsave(path.join(FLAGS.save_dir, 'gen.png'), out_img / 255)
+        gen_img = np.array([rain_img, out_img, gt_img])
+
+        num = r.split('/')[-1].split('_')[0]
+
+        tl.visualize.save_images(gen_img, [1, 3], path.join(FLAGS.save_dir, 'out_{}.png'.format(num)))
 
     sess.close()
+
+    print('SSIM: {:.5f}'.format(np.mean(ssim_list)))
+    print('PSNR: {:.5f}'.format(np.mean(psnr_list)))
 
 
 if __name__ == "__main__":

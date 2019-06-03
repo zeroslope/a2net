@@ -9,8 +9,8 @@ import tensorflow as tf
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
-from config import global_config
-CFG = global_config.cfg
+from trainer.global_config import cfg
+CFG = cfg
 
 
 def preprocess_image(image):
