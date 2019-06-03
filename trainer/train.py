@@ -24,9 +24,9 @@ flags.DEFINE_float('beta1', 0.5, 'beta1 [0.5]')
 flags.DEFINE_float('lr', 0.0002, 'learning_rate [0.0002]')
 flags.DEFINE_float('lr_decay', 0.90, 'lr_decay [0.5]')
 flags.DEFINE_integer('decay_every', 50, 'decay_every [200]')
-flags.DEFINE_integer('train_epochs', 20000, 'train_epochs')
-flags.DEFINE_integer('batch_size', 32, 'batch_size [64]')
-flags.DEFINE_integer('test_batch_size', 1, 'batch_size [1]')
+flags.DEFINE_integer('train_epochs', 15000, 'train_epochs')
+flags.DEFINE_integer('batch_size', 32, 'batch_size [32]')
+flags.DEFINE_integer('test_batch_size', 16, 'batch_size [16]')
 
 
 flags.mark_flag_as_required('dataset_dir')
@@ -88,10 +88,10 @@ def main(_):
         sess = tf.Session(config=config)
         ###======================== DEFIINE MODEL =======================###
         train_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='train')
-        val_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='val')
+        val_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='test') # 使用test测试
 
         train_x, train_y = train_dataset.inputs(FLAGS.batch_size)
-        val_x, val_y = val_dataset.inputs(FLAGS.batch_size)
+        val_x, val_y = val_dataset.inputs(FLAGS.test_batch_size)
 
     with tf.device('/gpu:0'):
         
@@ -190,7 +190,7 @@ def main(_):
 
                 gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
-                save_images(gen_img, [3, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
+                save_images(gen_img, [3, FLAGS.test_batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
 
                 log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
 

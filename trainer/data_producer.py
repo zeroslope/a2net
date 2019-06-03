@@ -75,7 +75,7 @@ class DataProducer(object):
             img_paths = list(dir_path.glob('*.png'))
             img_paths.sort(key=lambda x: x.name)
             img_paths = [str(path) for path in img_paths]
-            print(img_paths[:10])
+            # print(img_paths[:10])
             return img_paths
 
         def split_train_val_test(all_img_paths):
@@ -85,9 +85,9 @@ class DataProducer(object):
             m1 = int(image_count * 0.85)
             m2 = int(image_count * 0.9)
 
-            train_set = all_img_paths[:m1]
-            val_set = all_img_paths[m1:m2]
-            test_set = all_img_paths[m2:]
+            train_set = all_img_paths
+            val_set = []
+            test_set = []
 
             return train_set, val_set, test_set
 
@@ -138,17 +138,17 @@ class DataProducer(object):
 
         log.info('Generate training example tfrecords complete')
 
-        log.info('Generating validation example tfrecords')
+        # log.info('Generating validation example tfrecords')
 
-        generate(self._val_index_file_path, 'val')
+        # generate(self._val_index_file_path, 'val')
 
-        log.info('Generate validation example tfrecords complete')
+        # log.info('Generate validation example tfrecords complete')
 
-        log.info('Generating testing example tfrecords')
+        # log.info('Generating testing example tfrecords')
 
-        generate(self._test_index_file_path, 'test')
+        # generate(self._test_index_file_path, 'test')
 
-        log.info('Generate testing example tfrecords complete')
+        # log.info('Generate testing example tfrecords complete')
 
 
 if __name__ == '__main__':
