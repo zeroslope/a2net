@@ -176,7 +176,8 @@ def main(_):
             log.info('Restore model from last model checkpoint {:s}'.format(FLAGS.weights_path))
             saver.restore(sess=sess, save_path=FLAGS.weights_path)
 
-        sess.run(iterator_train.initializer())
+        sess.run(iterator_train.initializer)
+        sess.run(iterator_val.initializer)
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
             t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
@@ -189,11 +190,10 @@ def main(_):
 
             # Evaluate model
             if (epoch+1) % 100 == 0:
-                sess.run(iterator_val.initializer())
                 try:
                     v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
                 except tf.errors.OutOfRangeError:
-                    pass
+                    sess.run(iterator_val.initializer)
 
                 gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
