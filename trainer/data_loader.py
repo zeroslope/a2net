@@ -132,20 +132,17 @@ class DataLoader(object):
             # completely uniform shuffling, set the parameter to be the same as the
             # number of elements in the dataset.
             if self._dataset_flags != 'test':
-                dataset = dataset.shuffle(buffer_size=1024)
+                dataset = dataset.shuffle(buffer_size=1600)
                 # repeat 不加参数可以无限循环，否则需要catch OutOfRangeError
                 dataset = dataset.repeat()
-                dataset = dataset.batch(batch_size, drop_remainder=True)
-                dataset = dataset.prefetch(buffer_size=AUTOTUNE)
 
-                iterator = dataset.make_one_shot_iterator()
-            else:
-                dataset = dataset.batch(batch_size, drop_remainder=True)
-                dataset = dataset.prefetch(buffer_size=AUTOTUNE)
+            dataset = dataset.batch(batch_size, drop_remainder=True)
+            dataset = dataset.prefetch(buffer_size=AUTOTUNE)
 
-                iterator = dataset.make_initializable_iterator(shared_name=self._dataset_flags)
+            iterator = dataset.make_one_shot_iterator()
 
-        return iterator
+        return iterator.get_next(
+            name='{:s}_IteratorGetNext'.format(self._dataset_flags))
 
 
 if __name__ == "__main__":

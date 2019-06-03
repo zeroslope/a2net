@@ -70,6 +70,15 @@ def save_images(images, size, image_path):
     else:
         _save_images(images, size, image_path)
 
+def _yuv_to_rgb(images):
+    val_out_tensor = tf.stack([
+        (images[:,:,:,0] + 1) / 2,
+        images[:,:,:,1] / 2,
+        images[:,:,:,2] / 2,
+    ], axis=-1)
+    val_out_rgb_float = tf.image.yuv_to_rgb(val_out_tensor)
+    return tf.image.convert_image_dtype(val_out_rgb_float, tf.uint8)
+
 def main(_):
     tboard_save_dir = path.join(FLAGS.save_dir, 'tboard')
     sample_save_dir = path.join(FLAGS.save_dir, 'sample')
@@ -88,12 +97,14 @@ def main(_):
         sess = tf.Session(config=config)
         ###======================== DEFIINE MODEL =======================###
         train_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='train')
-        val_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='test') # 使用test测试
+        val_dataset = DataLoader(save_dir=FLAGS.dataset_dir, flag='val')
 
-        iterator_train = train_dataset.inputs(FLAGS.batch_size)
-        train_x, train_y = iterator_train.get_next()
-        iterator_val = val_dataset.inputs(FLAGS.test_batch_size)
-        val_x, val_y = iterator_val.get_next()
+        # iterator_train = train_dataset.inputs(FLAGS.batch_size)
+        # train_x, train_y = iterator_train.get_next()
+        # iterator_val = val_dataset.inputs(FLAGS.test_batch_size)
+        # val_x, val_y = iterator_val.get_next()
+        train_x, train_y = train_dataset.inputs(FLAGS.batch_size)
+        val_x, val_y = val_dataset.inputs(FLAGS.test_batch_size)
 
     with tf.device('/gpu:0'):
         
@@ -103,14 +114,12 @@ def main(_):
         train_out_tensor = train_out.outputs
         
         val_out_tensor = val_out.outputs
-        val_out_rgb_float = tf.image.yuv_to_rgb(val_out_tensor)
-        val_out_rgb = tf.image.convert_image_dtype(val_out_rgb_float, tf.uint8)
+        
+        val_out_rgb = _yuv_to_rgb(val_out_tensor)
 
-        val_in_x_float = tf.image.yuv_to_rgb(val_x)
-        val_in_x_rgb = tf.image.convert_image_dtype(val_in_x_float, tf.uint8)
+        val_in_x_rgb = _yuv_to_rgb(val_x)
 
-        val_in_y_float = tf.image.yuv_to_rgb(val_y)
-        val_in_y_rgb = tf.image.convert_image_dtype(val_in_y_float, tf.uint8)
+        val_in_y_rgb = _yuv_to_rgb(val_y)
 
         ###======================== DEFINE LOSS =========================###
 
@@ -176,24 +185,21 @@ def main(_):
             log.info('Restore model from last model checkpoint {:s}'.format(FLAGS.weights_path))
             saver.restore(sess=sess, save_path=FLAGS.weights_path)
 
-        sess.run(iterator_val.initializer)
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
-            t_out, t_l, t_l_Y, t_l_UV, t_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, train_op])
+            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
+            # t_out, t_l, t_l_Y, t_l_UV, t_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, train_op])
             cost_time = time.time() - t_start
 
             summary_writer.add_summary(t_s, global_step=epoch)
+            summary_writer.add_summary(v_s, global_step=epoch)
 
             log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
 
             # Evaluate model
-            if (epoch+1) % 100 == 0:
-                try:
-                    v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV, v_s  = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV, val_summary])
-                except tf.errors.OutOfRangeError:
-                    sess.run(iterator_val.initializer)
-
-                summary_writer.add_summary(v_s, global_step=epoch)
+            if (epoch+1) % 50 == 0:
+                v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
+                
                 gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
                 save_images(gen_img, [3, FLAGS.test_batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
