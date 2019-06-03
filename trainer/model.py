@@ -6,6 +6,8 @@ import tensorflow as tf
 import tensorlayer as tl
 from tensorlayer.layers import InputLayer, Conv2d, ConcatLayer, DeConv2d, ElementwiseLambdaLayer, LambdaLayer
 
+UV_SIZE = 24
+
 
 def a2net(x, is_train=True, reuse=False):
     with tf.variable_scope('a2net', reuse=reuse):
@@ -51,20 +53,20 @@ def a2net(x, is_train=True, reuse=False):
 
         # DecoderUV
 
-        convUV_1 = Conv2d(aggregation3, 24, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv1')
+        convUV_1 = Conv2d(aggregation3, UV_SIZE, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv1')
 
         concatUV_1 = ConcatLayer([aggregation3, convUV_1], concat_dim=-1, name='decoderUV/concat1')
-        aggregationUV_1 = DeConv2d(concatUV_1, 24, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation1')
+        aggregationUV_1 = DeConv2d(concatUV_1, UV_SIZE, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation1')
         copyUV_1 = ConcatLayer([conv4, aggregationUV_1], concat_dim=-1, name='decoderUV/copy1')
-        convUV_2 = Conv2d(copyUV_1, 24, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv2')
+        convUV_2 = Conv2d(copyUV_1, UV_SIZE, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv2')
 
         concatUV_2 = ConcatLayer([copyUV_1, convUV_2], concat_dim=-1, name='decoderUV/concat2')
-        aggregationUV_2 = DeConv2d(concatUV_2, 24, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation2')
+        aggregationUV_2 = DeConv2d(concatUV_2, UV_SIZE, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation2')
         copyUV_2 = ConcatLayer([conv3, aggregationUV_2], concat_dim=-1, name='decoderUV/copy2')
-        convUV_3 = Conv2d(copyUV_2, 24, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv3')
+        convUV_3 = Conv2d(copyUV_2, UV_SIZE, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv3')
         
         concatUV_3 = ConcatLayer([copyUV_2, convUV_3], concat_dim=-1, name='decoderUV/concat3')
-        aggregationUV_3 = DeConv2d(concatUV_3, 24, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation3')
+        aggregationUV_3 = DeConv2d(concatUV_3, UV_SIZE, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation3')
         copyUV_3 = ConcatLayer([conv2, aggregationUV_3], concat_dim=-1, name='decoderUV/copy3')
 
         outputUV = Conv2d(copyUV_3, 2, (3, 3), (1, 1), act=tf.nn.tanh, name='decoderUV/output')
