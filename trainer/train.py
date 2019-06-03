@@ -179,21 +179,21 @@ def main(_):
         sess.run(iterator_val.initializer)
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
-            t_out, t_l, t_l_Y, t_l_UV, t_s, v_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, val_summary, train_op])
+            t_out, t_l, t_l_Y, t_l_UV, t_s, _ = sess.run([train_out_tensor, train_loss, train_l_ssim_Y, train_l_ssim_UV, train_summary, train_op])
             cost_time = time.time() - t_start
 
             summary_writer.add_summary(t_s, global_step=epoch)
-            summary_writer.add_summary(v_s, global_step=epoch)
 
             log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
 
             # Evaluate model
             if (epoch+1) % 100 == 0:
                 try:
-                    v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
+                    v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV, v_s  = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV, val_summary])
                 except tf.errors.OutOfRangeError:
                     sess.run(iterator_val.initializer)
 
+                summary_writer.add_summary(v_s, global_step=epoch)
                 gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
                 save_images(gen_img, [3, FLAGS.test_batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
