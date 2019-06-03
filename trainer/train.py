@@ -4,7 +4,7 @@ import time
 import glog as log
 import numpy as np
 import tensorflow as tf
-import tensorlayer as tl
+import tensorlayer as tl 
 
 from trainer.data_loader import DataLoader
 from trainer.global_config import cfg
@@ -14,31 +14,65 @@ from trainer.model import a2net, a2net_loss
 
 flags = tf.app.flags
 flags.DEFINE_string('dataset_dir', None, 'The dataset dir. [None]')
-flags.DEFINE_string('save_dir', None, 'The model saving dir. [None]')
+flags.DEFINE_string('job_dir', None, 'The model saving dir. [None]')
 flags.DEFINE_string('weights_path', None, 'The pretrained weights path. [None]')
 flags.DEFINE_float('alpha', 0.6, 'loss = l_Y + alpha * l_UV [0.6]')
 flags.DEFINE_float('beta1', 0.5, 'beta1 [0.5]')
 flags.DEFINE_float('lr', 0.0002, 'learning_rate [0.0002]')
 flags.DEFINE_float('lr_decay', 0.90, 'lr_decay [0.5]')
 flags.DEFINE_integer('decay_every', 50, 'decay_every [200]')
-flags.DEFINE_integer('train_epochs', 50000, 'train_epochs')
-flags.DEFINE_integer('batch_size', 4, 'batch_size [4]')
+flags.DEFINE_integer('train_epochs', 20000, 'train_epochs')
+flags.DEFINE_integer('batch_size', 32, 'batch_size [64]')
 flags.DEFINE_integer('test_batch_size', 1, 'batch_size [1]')
 
 
 flags.mark_flag_as_required('dataset_dir')
-flags.mark_flag_as_required('save_dir')
+flags.mark_flag_as_required('job_dir')
 FLAGS = flags.FLAGS
+
+def save_images(sess, images, size, image_path='_temp.png'):
+
+    if len(images.shape) == 3:  # Greyscale [batch, h, w] --> [batch, h, w, 1]
+        images = images[:, :, :, np.newaxis]
+
+    def merge(images, size):
+        h, w = images.shape[1], images.shape[2]
+        img = np.zeros((h * size[0], w * size[1], 3), dtype=images.dtype)
+        for idx, image in enumerate(images):
+            i = idx % size[1]
+            j = idx // size[1]
+            img[j * h:j * h + h, i * w:i * w + w, :] = image
+        return img
+
+    def imsave(images, size, path):
+        if np.max(images) <= 1 and (-1 <= np.min(images) < 0):
+            images = ((images + 1) * 127.5).astype(np.uint8)
+        elif np.max(images) <= 1 and np.min(images) >= 0:
+            images = (images * 255).astype(np.uint8)
+
+        data = merge(images, size)
+        img_tensor = tf.image.encode_png(data)
+        img = sess.run(img_tensor)
+
+        with tf.gfile.GFile(path, mode='wb') as fd:
+            fd.write(img)
+
+        return True
+
+    if len(images) > size[0] * size[1]:
+        raise AssertionError("number of images should be equal or less than size[0] * size[1] {}".format(len(images)))
+
+    return imsave(images, size, image_path)
 
 
 def main(_):
-    tboard_save_dir = path.join(FLAGS.save_dir, 'tboard')
-    sample_save_dir = path.join(FLAGS.save_dir, 'sample')
-    model_save_dir = path.join(FLAGS.save_dir, 'model')
+    tboard_save_dir = path.join(FLAGS.job_dir, 'tboard')
+    sample_save_dir = path.join(FLAGS.job_dir, 'sample')
+    model_save_dir = path.join(FLAGS.job_dir, 'model')
 
-    tl.files.exists_or_mkdir(path.join(FLAGS.save_dir, 'model'))
-    tl.files.exists_or_mkdir(path.join(FLAGS.save_dir, 'tboard'))
-    tl.files.exists_or_mkdir(path.join(FLAGS.save_dir, 'sample'))
+    tl.files.exists_or_mkdir(path.join(FLAGS.job_dir, 'model'))
+    tl.files.exists_or_mkdir(path.join(FLAGS.job_dir, 'tboard'))
+    tl.files.exists_or_mkdir(path.join(FLAGS.job_dir, 'sample'))
 
     config = tf.ConfigProto()
     config.allow_soft_placement = True
@@ -106,7 +140,7 @@ def main(_):
 
         ###======================== LOAD MODEL ==============================###
         tl.layers.initialize_global_variables(sess)
-        # tl.files.load_and_assign_npz(sess=sess, name=FLAGS.save_dir+'/u_net_{}.npz'.format(task), network=net)
+        # tl.files.load_and_assign_npz(sess=sess, name=FLAGS.job_dir+'/u_net_{}.npz'.format(task), network=net)
 
         train_out.print_params(details=False)
         train_out.print_layers()
@@ -146,12 +180,13 @@ def main(_):
             log.info('Epoch_Train: {:d} train_loss: {:.5f} train_l_ssim_Y: {:.5f} train_l_ssim_UV: {:.5f} Cost_time: {:.5f}s'.format(epoch, t_l, t_l_Y, t_l_UV, cost_time))
 
             # Evaluate model
-            if (epoch+1) % 50 == 0:
+            if (epoch+1) % 1 == 0:
                 v_in_x_rgb, v_in_y_rgb, v_out_rgb, v_l, v_l_Y, v_l_UV = sess.run([val_in_x_rgb, val_in_y_rgb, val_out_rgb, val_loss, val_l_ssim_Y, val_l_ssim_UV])
 
                 gen_img = np.concatenate((v_in_x_rgb, v_out_rgb, v_in_y_rgb), axis=0)
 
-                tl.visualize.save_images(gen_img, [3, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
+                save_images(sess, gen_img, [3, FLAGS.batch_size], path.join(sample_save_dir, 'val_{}.png'.format(epoch)))
+
                 log.info('Epoch_Val: {:d} val_loss: {:.5f} val_l_ssim_Y: {:.5f} val_l_ssim_UV: {:.5f}  Cost_time: {:.5f}s'.format(epoch, v_l, v_l_Y, v_l_UV, cost_time))
 
             # Save Model

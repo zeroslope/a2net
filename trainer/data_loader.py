@@ -72,7 +72,7 @@ class DataLoader(object):
     def __init__(self, save_dir, flag='train'):
         self._save_dir = save_dir
 
-        if not path.exists(self._save_dir):
+        if not tf.gfile.Exists(self._save_dir):
             raise ValueError('{:s} not exist, please check again'.format(
                 self._save_dir))
 
@@ -122,7 +122,7 @@ class DataLoader(object):
             # completely uniform shuffling, set the parameter to be the same as the
             # number of elements in the dataset.
             if self._dataset_flags != 'test':
-                dataset = dataset.shuffle(buffer_size=1000)
+                dataset = dataset.shuffle(buffer_size=1600)
                 # repeat 不加参数可以无限循环，否则需要catch OutOfRangeError
                 dataset = dataset.repeat()
 
