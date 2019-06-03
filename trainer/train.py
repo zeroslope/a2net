@@ -176,7 +176,6 @@ def main(_):
             log.info('Restore model from last model checkpoint {:s}'.format(FLAGS.weights_path))
             saver.restore(sess=sess, save_path=FLAGS.weights_path)
 
-        sess.run(iterator_train.initializer)
         sess.run(iterator_val.initializer)
         for epoch in range(FLAGS.train_epochs):
             t_start = time.time()
