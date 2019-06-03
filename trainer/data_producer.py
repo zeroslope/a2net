@@ -15,7 +15,7 @@ def _bytes_feature(value):
 
 def _get_img_bytes(img_path):
     r = None
-    with open(img_path, 'rb') as fd:
+    with tf.gfile.Open(img_path, 'rb') as fd:
         r = fd.read()
     return r
 
@@ -61,13 +61,13 @@ class DataProducer(object):
             self._generate_training_index_file()
 
     def _is_exist_dataset(self):
-        return path.exists(self._rain_image_dir) and path.exists(
+        return tf.gfile.Exists(self._rain_image_dir) and tf.gfile.Exists(
             self._gt_image_dir)
 
     def _is_exist_index_file(self):
-        return path.exists(self._train_index_file_path) and \
-            path.exists(self._test_index_file_path) and \
-            path.exists(self._val_index_file_path)
+        return tf.gfile.Exists(self._train_index_file_path) and \
+            tf.gfile.Exists(self._test_index_file_path) and \
+            tf.gfile.Exists(self._val_index_file_path)
 
     def _generate_training_index_file(self):
         def get_all_img_path(dir_path):
@@ -75,6 +75,7 @@ class DataProducer(object):
             img_paths = list(dir_path.glob('*.png'))
             img_paths.sort(key=lambda x: x.name)
             img_paths = [str(path) for path in img_paths]
+            print(img_paths[:10])
             return img_paths
 
         def split_train_val_test(all_img_paths):
@@ -96,17 +97,17 @@ class DataProducer(object):
         train_set_paths, val_set_paths, test_set_paths = split_train_val_test(
             list(zip(rain_paths, gt_paths)))
 
-        with open(path.join(self._dataset_dir, 'train.txt'), 'w') as fd:
+        with tf.gfile.Open(path.join(self._dataset_dir, 'train.txt'), 'w') as fd:
             for r, c in train_set_paths:
                 s = "{} {}\n".format(r, c)
                 fd.write(s)
 
-        with open(path.join(self._dataset_dir, 'val.txt'), 'w') as fd:
+        with tf.gfile.Open(path.join(self._dataset_dir, 'val.txt'), 'w') as fd:
             for r, c in val_set_paths:
                 s = "{} {}\n".format(r, c)
                 fd.write(s)
 
-        with open(path.join(self._dataset_dir, 'test.txt'), 'w') as fd:
+        with tf.gfile.Open(path.join(self._dataset_dir, 'test.txt'), 'w') as fd:
             for r, c in test_set_paths:
                 s = "{} {}\n".format(r, c)
                 fd.write(s)
@@ -116,7 +117,7 @@ class DataProducer(object):
     def generate_tfrecords(self, save_dir):
         def generate(index_file_path, set_name):
             img_paths = []
-            with open(index_file_path, 'r') as fd:
+            with tf.gfile.Open(index_file_path, 'r') as fd:
                 for line in fd:
                     r, c = line.rstrip('\r').rstrip('\n').split(' ')
                     img_paths.append((r, c))
@@ -128,7 +129,8 @@ class DataProducer(object):
                     example = _encode2feature(r, c)
                     _writer.write(example.SerializeToString())
 
-        os.makedirs(save_dir, exist_ok=True)
+        tf.gfile.MakeDirs(save_dir)
+        # os.makedirs(save_dir, exist_ok=True)
 
         log.info('Generating training example tfrecords')
 
@@ -152,7 +154,7 @@ class DataProducer(object):
 if __name__ == '__main__':
     args = init_args()
 
-    assert path.exists(args.dataset_dir), '{:s} not exist'.format(
+    assert tf.gfile.Exists(args.dataset_dir), '{:s} not exist'.format(
         args.dataset_dir)
 
     producer = DataProducer(dataset_dir=args.dataset_dir)
