@@ -12,10 +12,7 @@ from skimage.transform import resize
 from skimage.color import rgb2yuv, yuv2rgb, rgb2gray
 from skimage.measure import compare_ssim, compare_psnr
 
-from trainer.global_config import cfg
-CFG = cfg
-
-from trainer.model import a2net
+from model import a2net
 
 flags = tf.app.flags
 flags.DEFINE_string('dataset_dir', None, 'The dataset dir path. [None]')
@@ -48,7 +45,7 @@ def get_img_paths(dataset_dir):
 
     def get_all_img_path(dir_path):
         dir_path = pathlib.Path(dir_path)
-        img_paths = list(dir_path.glob('*.png'))
+        img_paths = list(dir_path.glob('*.[jp][pn]g'))
         img_paths.sort(key=lambda x: x.name)
         img_paths = [str(path) for path in img_paths]
         return img_paths
@@ -86,6 +83,11 @@ def main(_):
     ssim_list = []
     psnr_list = []
 
+    def normalize(t):
+        t[t < 0] = 0
+        t[t > 1] = 1
+        return t
+
     for r, g in img_paths:
 
         rain_img = load_and_process_image(r)
@@ -101,6 +103,10 @@ def main(_):
         rain_img = yuv2rgb(rain_img)
         out_img = yuv2rgb(out_img)
         gt_img = yuv2rgb(gt_img)
+
+        rain_img = normalize(rain_img)
+        out_img = normalize(out_img)
+        gt_img = normalize(gt_img)
 
         ssim = compare_ssim(rgb2gray(gt_img), rgb2gray(out_img))
         psnr = compare_psnr(rgb2gray(gt_img), rgb2gray(out_img))
@@ -125,3 +131,8 @@ def main(_):
 
 if __name__ == "__main__":
     tf.app.run()
+
+
+# R = [0, 1] + [-0.7011, 0.7011] = [-0.7011, 1.7011]
+# G = [0, 1] - [-0.17222, 0.17222] - [-0.357315, 0.357315] = [-0.529535, 1.529535]
+# B = [0, 1] + [-0.886388, 0.886388] = [-0.886388, 1.886388]
