@@ -12,13 +12,23 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 from trainer.global_config import cfg
 CFG = cfg
 
+u_trans = 1 / 0.43601035
+v_trans = 1 / 0.61497538
+
+# Y U V -> [-1, 1]
+def _normalize(image):
+    return tf.stack([
+        image[:,:,0]*2-1,
+        image[:,:,1]*u_trans,
+        image[:,:,2]*v_trans
+    ], axis=-1)
 
 def preprocess_image(image):
     #TODO: add size
     image = tf.image.decode_png(image, channels=3)
     image_float = tf.image.convert_image_dtype(image, tf.float32)
     image_yuv = tf.image.rgb_to_yuv(image_float)
-    return image_yuv
+    return _normalize(image_yuv)
 
 
 def _process_rain_gt(record):
@@ -122,7 +132,7 @@ class DataLoader(object):
             # completely uniform shuffling, set the parameter to be the same as the
             # number of elements in the dataset.
             if self._dataset_flags != 'test':
-                dataset = dataset.shuffle(buffer_size=1600)
+                dataset = dataset.shuffle(buffer_size=1024)
                 # repeat 不加参数可以无限循环，否则需要catch OutOfRangeError
                 dataset = dataset.repeat()
 
