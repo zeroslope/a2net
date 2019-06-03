@@ -138,7 +138,7 @@ class DataLoader(object):
                 dataset = dataset.batch(batch_size, drop_remainder=True)
                 dataset = dataset.prefetch(buffer_size=AUTOTUNE)
 
-                iterator = dataset.make_one_shot_iterator(shared_name=self._dataset_flags)
+                iterator = dataset.make_one_shot_iterator()
             else:
                 dataset = dataset.batch(batch_size, drop_remainder=True)
                 dataset = dataset.prefetch(buffer_size=AUTOTUNE)
