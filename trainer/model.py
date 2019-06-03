@@ -7,6 +7,7 @@ import tensorlayer as tl
 from tensorlayer.layers import InputLayer, Conv2d, ConcatLayer, DeConv2d, ElementwiseLambdaLayer, LambdaLayer
 
 UV_SIZE = 24
+BETA = 0.6
 
 
 def a2net(x, is_train=True, reuse=False):
@@ -74,12 +75,12 @@ def a2net(x, is_train=True, reuse=False):
 
         outY_plus_Y = ElementwiseLambdaLayer(
             [outputY, inputY],
-            fn=lambda x, y: (x + y) / 2.0,
+            fn=lambda x, y: BETA * x + (1 - BETA) * y,
             name='outY_plus_Y')
 
         outUV_plus_UV = ElementwiseLambdaLayer(
             [outputUV, inputUV],
-            fn=lambda x, y: (x + y) / 2.0,
+            fn=lambda x, y: BETA * x + (1 - BETA) * y,
             name='outUV_plus_UV')
 
         net_out = ConcatLayer([outY_plus_Y, outUV_plus_UV], concat_dim=-1, name='net_out')
@@ -89,17 +90,18 @@ def a2net(x, is_train=True, reuse=False):
 
 def a2net_loss(o_Y, o_UV, gt, name, alpha=0.6, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
-        o_Y = o_Y.outputs
-        o_UV = o_UV.outputs
+        o_Y = (o_Y.outputs + 1) / 2 # [-1, 1] -> [0, 1]
+        o_UV = (o_UV.outputs + 1) / 2 # [-1, 1] -> [0, 1]
+        gt = (gt + 1) / 2 # [-1, 1] -> [0, 1]
         t_Y = gt[:,:,:,:1]
         t_UV = gt[:,:,:,1:]
 
         l_mse_Y = tl.cost.mean_squared_error(o_Y, t_Y, is_mean=True, name='loss/mse_Y')
-        l_ssim_Y = tf.reduce_mean(tf.image.ssim(o_Y, t_Y, max_val=2.0), name='loss/ssim_Y')
+        l_ssim_Y = tf.reduce_mean(tf.image.ssim(o_Y, t_Y, max_val=1.0), name='loss/ssim_Y')
         l_Y = l_mse_Y - l_ssim_Y
 
         l_mse_UV = tl.cost.mean_squared_error(o_UV, t_UV, is_mean=True, name='loss/mse_UV')
-        l_ssim_UV = tf.reduce_mean(tf.image.ssim(o_UV, t_UV, max_val=2.0), name='loss/ssim_UV')
+        l_ssim_UV = tf.reduce_mean(tf.image.ssim(o_UV, t_UV, max_val=1.0), name='loss/ssim_UV')
         l_UV = l_mse_UV - l_ssim_UV
 
         # TODO: I am too stupid.
