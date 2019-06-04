@@ -7,12 +7,10 @@ import tensorlayer as tl
 from tensorlayer.layers import InputLayer, Conv2d, ConcatLayer, DeConv2d, ElementwiseLambdaLayer, LambdaLayer
 
 UV_SIZE = 24
-BETA = 0.7
+BETA = 0.45
 
 
 def a2net(x, is_train=True, reuse=False):
-    lrelu = lambda x: tf.nn.leaky_relu(x, alpha=0.2)
-
     with tf.variable_scope('a2net', reuse=reuse):
         net_in = InputLayer(x, name='input')
         inputY = InputLayer(x[:, :, :, :1], name='inputY')
@@ -20,56 +18,56 @@ def a2net(x, is_train=True, reuse=False):
 
         # Encoder
 
-        conv1 = Conv2d(net_in, 32, (3, 3), (1, 1), act=lrelu, name='encoder/conv1')
-        conv2 = Conv2d(conv1, 32, (3, 3), (1, 1), act=lrelu, name='encoder/conv2')
+        conv1 = Conv2d(net_in, 32, (3, 3), (1, 1), act=tf.nn.relu, name='encoder/conv1')
+        conv2 = Conv2d(conv1, 32, (3, 3), (1, 1), act=tf.nn.relu, name='encoder/conv2')
 
         concat1 = ConcatLayer([conv1, conv2], concat_dim=-1, name='encoder/concat1')
-        aggregation1 = Conv2d(concat1, 32, (4, 4), (2, 2), act=lrelu, name='encoder/aggregation1')
-        conv3 = Conv2d(aggregation1, 32, (3, 3), (1, 1), act=lrelu, name='encoder/conv3')
+        aggregation1 = Conv2d(concat1, 32, (4, 4), (2, 2), act=tf.nn.relu, name='encoder/aggregation1')
+        conv3 = Conv2d(aggregation1, 32, (3, 3), (1, 1), act=tf.nn.relu, name='encoder/conv3')
 
         concat2 = ConcatLayer([aggregation1, conv3], concat_dim=-1, name='encoder/concat2')
-        aggregation2 = Conv2d(concat2, 32, (4, 4), (2, 2), act=lrelu, name='encoder/aggregation2')
-        conv4 = Conv2d(aggregation2, 32, (3, 3), (1, 1), act=lrelu, name='encoder/conv4')
+        aggregation2 = Conv2d(concat2, 32, (4, 4), (2, 2), act=tf.nn.relu, name='encoder/aggregation2')
+        conv4 = Conv2d(aggregation2, 32, (3, 3), (1, 1), act=tf.nn.relu, name='encoder/conv4')
 
         concat3 = ConcatLayer([aggregation2, conv4], concat_dim=-1, name='encoder/concat3')
-        aggregation3 = Conv2d(concat3, 32, (4, 4), (2, 2), act=lrelu, name='encoder/aggregation3')
+        aggregation3 = Conv2d(concat3, 32, (4, 4), (2, 2), act=tf.nn.relu, name='encoder/aggregation3')
 
         # DecoderY
 
-        convY_1 = Conv2d(aggregation3, 32, (3, 3), (1, 1), act=lrelu, name='decoderY/conv1')
+        convY_1 = Conv2d(aggregation3, 32, (3, 3), (1, 1), act=tf.nn.relu, name='decoderY/conv1')
 
         concatY_1 = ConcatLayer([aggregation3, convY_1], concat_dim=-1, name='decoderY/concat1')
-        aggregationY_1 = DeConv2d(concatY_1, 32, (2, 2), (2, 2), act=lrelu, name='decoderY/aggregation1')
+        aggregationY_1 = DeConv2d(concatY_1, 32, (2, 2), (2, 2), act=tf.nn.relu, name='decoderY/aggregation1')
         copyY_1 = ConcatLayer([conv4, aggregationY_1], concat_dim=-1, name='decoderY/copy1')
-        convY_2 = Conv2d(copyY_1, 32, (3, 3), (1, 1), act=lrelu, name='decoderY/conv2')
+        convY_2 = Conv2d(copyY_1, 32, (3, 3), (1, 1), act=tf.nn.relu, name='decoderY/conv2')
 
         concatY_2 = ConcatLayer([copyY_1, convY_2], concat_dim=-1, name='decoderY/concat2')
-        aggregationY_2 = DeConv2d(concatY_2, 32, (2, 2), (2, 2), act=lrelu, name='decoderY/aggregation2')
+        aggregationY_2 = DeConv2d(concatY_2, 32, (2, 2), (2, 2), act=tf.nn.relu, name='decoderY/aggregation2')
         copyY_2 = ConcatLayer([conv3, aggregationY_2], concat_dim=-1, name='decoderY/copy2')
-        convY_3 = Conv2d(copyY_2, 32, (3, 3), (1, 1), act=lrelu, name='decoderY/conv3')
+        convY_3 = Conv2d(copyY_2, 32, (3, 3), (1, 1), act=tf.nn.relu, name='decoderY/conv3')
 
         concatY_3 = ConcatLayer([copyY_2, convY_3], concat_dim=-1, name='decoderY/concat3')
-        aggregationY_3 = DeConv2d(concatY_3, 32, (2, 2), (2, 2), act=lrelu, name='decoderY/aggregation3')
+        aggregationY_3 = DeConv2d(concatY_3, 32, (2, 2), (2, 2), act=tf.nn.relu, name='decoderY/aggregation3')
         copyY_3 = ConcatLayer([conv2, aggregationY_3], concat_dim=-1, name='decoderY/copy3')
 
         outputY = Conv2d(copyY_3, 1, (3, 3), (1, 1), act=tf.nn.tanh, name='decoderY/output')
 
         # DecoderUV
 
-        convUV_1 = Conv2d(aggregation3, UV_SIZE, (3, 3), (1, 1), act=lrelu, name='decoderUV/conv1')
+        convUV_1 = Conv2d(aggregation3, UV_SIZE, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv1')
 
         concatUV_1 = ConcatLayer([aggregation3, convUV_1], concat_dim=-1, name='decoderUV/concat1')
-        aggregationUV_1 = DeConv2d(concatUV_1, UV_SIZE, (2, 2), (2, 2), act=lrelu, name='decoderUV/aggregation1')
+        aggregationUV_1 = DeConv2d(concatUV_1, UV_SIZE, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation1')
         copyUV_1 = ConcatLayer([conv4, aggregationUV_1], concat_dim=-1, name='decoderUV/copy1')
-        convUV_2 = Conv2d(copyUV_1, UV_SIZE, (3, 3), (1, 1), act=lrelu, name='decoderUV/conv2')
+        convUV_2 = Conv2d(copyUV_1, UV_SIZE, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv2')
 
         concatUV_2 = ConcatLayer([copyUV_1, convUV_2], concat_dim=-1, name='decoderUV/concat2')
-        aggregationUV_2 = DeConv2d(concatUV_2, UV_SIZE, (2, 2), (2, 2), act=lrelu, name='decoderUV/aggregation2')
+        aggregationUV_2 = DeConv2d(concatUV_2, UV_SIZE, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation2')
         copyUV_2 = ConcatLayer([conv3, aggregationUV_2], concat_dim=-1, name='decoderUV/copy2')
-        convUV_3 = Conv2d(copyUV_2, UV_SIZE, (3, 3), (1, 1), act=lrelu, name='decoderUV/conv3')
+        convUV_3 = Conv2d(copyUV_2, UV_SIZE, (3, 3), (1, 1), act=tf.nn.relu, name='decoderUV/conv3')
         
         concatUV_3 = ConcatLayer([copyUV_2, convUV_3], concat_dim=-1, name='decoderUV/concat3')
-        aggregationUV_3 = DeConv2d(concatUV_3, UV_SIZE, (2, 2), (2, 2), act=lrelu, name='decoderUV/aggregation3')
+        aggregationUV_3 = DeConv2d(concatUV_3, UV_SIZE, (2, 2), (2, 2), act=tf.nn.relu, name='decoderUV/aggregation3')
         copyUV_3 = ConcatLayer([conv2, aggregationUV_3], concat_dim=-1, name='decoderUV/copy3')
 
         outputUV = Conv2d(copyUV_3, 2, (3, 3), (1, 1), act=tf.nn.tanh, name='decoderUV/output')
@@ -100,11 +98,15 @@ def a2net_loss(o_Y, o_UV, gt, name, alpha=0.6, reuse=False):
 
         l_mse_Y = tl.cost.mean_squared_error(o_Y, t_Y, is_mean=True, name='loss/mse_Y')
         l_ssim_Y = tf.reduce_mean(tf.image.ssim(o_Y, t_Y, max_val=1.0), name='loss/ssim_Y')
-        l_Y = l_mse_Y - l_ssim_Y
+        l_psnr_Y = tf.reduce_mean(tf.image.psnr(o_Y, t_Y, max_val=1.0), name='loss.psnr_Y')
+        l_Y = l_mse_Y - l_ssim_Y - l_psnr_Y
+        # l_Y = l_mse_Y - l_ssim_Y
 
         l_mse_UV = tl.cost.mean_squared_error(o_UV, t_UV, is_mean=True, name='loss/mse_UV')
         l_ssim_UV = tf.reduce_mean(tf.image.ssim(o_UV, t_UV, max_val=1.0), name='loss/ssim_UV')
-        l_UV = l_mse_UV - l_ssim_UV
+        l_psnr_UV = tf.reduce_mean(tf.image.psnr(o_UV, t_UV, max_val=1.0), name='loss/psnr_UV')
+        l_UV = l_mse_UV - l_ssim_UV - l_psnr_UV
+        # l_UV = l_mse_UV - l_ssim_UV
 
         # TODO: I am too stupid.
         loss = l_Y + alpha * l_UV

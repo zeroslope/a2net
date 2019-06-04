@@ -132,7 +132,7 @@ class DataLoader(object):
             # completely uniform shuffling, set the parameter to be the same as the
             # number of elements in the dataset.
             if self._dataset_flags != 'test':
-                dataset = dataset.shuffle(buffer_size=1600)
+                dataset = dataset.shuffle(buffer_size=1024)
                 # repeat 不加参数可以无限循环，否则需要catch OutOfRangeError
                 dataset = dataset.repeat()
 

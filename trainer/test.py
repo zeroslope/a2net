@@ -26,6 +26,23 @@ flags.mark_flag_as_required('weights_path')
 flags.mark_flag_as_required('save_dir')
 FLAGS = flags.FLAGS
 
+def align_to_four(img):
+    a_row = int(img.shape[0] / 4) * 4
+    a_col = int(img.shape[1] / 4) * 4
+    img = img[0:a_row, 0:a_col]
+    return img
+
+u_trans = 1 / 0.43601035
+v_trans = 1 / 0.61497538
+
+# Y U V -> [-1, 1]
+def _normalize(image):
+    return np.stack([
+        image[:,:,0]*2-1,
+        image[:,:,1]*u_trans,
+        image[:,:,2]*v_trans
+    ], axis=-1)
+
 def preprocess_image(image):
     # image = tf.image.decode_png(image, channels=3)
     # image = tf.image.resize(image, [FLAGS.height, FLAGS.width])
@@ -33,6 +50,7 @@ def preprocess_image(image):
     # image_yuv = tf.image.rgb_to_yuv(image_float)
     image = resize(image, (FLAGS.height, FLAGS.width))
     image_yuv = rgb2yuv(image)
+    image_yuv = _normalize(image_yuv)
     return image_yuv
 
 def load_and_process_image(image_path):
@@ -64,7 +82,7 @@ def main(_):
     img_paths = get_img_paths(FLAGS.dataset_dir)
 
 
-    with tf.device('/cpu:0'):
+    with tf.device('/gpu:0'):
         x = tf.placeholder(dtype=tf.float32, 
             shape=[1, None, None, 3],
             name='input_tensor'
@@ -89,6 +107,8 @@ def main(_):
         return t
 
     for r, g in img_paths:
+        num = r.split('/')[-1].split('_')[0]
+        print('Image: {}_rain'.format(num))
 
         rain_img = load_and_process_image(r)
         gt_img = load_and_process_image(g)
@@ -118,8 +138,6 @@ def main(_):
         print('PSNR: {:.5f}'.format(psnr))
 
         gen_img = np.array([rain_img, out_img, gt_img])
-
-        num = r.split('/')[-1].split('_')[0]
 
         tl.visualize.save_images(gen_img, [1, 3], path.join(FLAGS.save_dir, 'out_{}.png'.format(num)))
 
